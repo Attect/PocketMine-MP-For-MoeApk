@@ -15,9 +15,12 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
  *
-*/
+ * 适合MoeApk控制台版本
+ * 由Attect修改
+ * 所有修改处均有注明
+ **/
+
 
 class ServerAPI{
 	public $restart = false;
