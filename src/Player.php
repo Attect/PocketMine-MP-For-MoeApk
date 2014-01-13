@@ -15,10 +15,15 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
  *
-*/
-
+ *
+ *
+ *
+ *
+ * 适合MoeApk控制台版本
+ * 由Attect修改
+ * 所有修改处均有注明
+ **/
 
 class Player{
 	private $server;
@@ -58,6 +63,7 @@ class Player{
 	public $windowCnt = 2;
 	public $windows = array();
 	public $blocked = true;
+	public $achievements = array();
 	public $chunksLoaded = array();
 	private $chunksOrder = array();
 	private $lastMeasure = 0;
@@ -84,7 +90,13 @@ class Player{
 		}
 		return null;
 	}
-	
+
+	/**
+	 * @param integer $clientID
+	 * @param string $ip
+	 * @param integer $port
+	 * @param integer $MTU
+	 */
 	public function __construct($clientID, $ip, $port, $MTU){
 		$this->bigCnt = 0;
 		$this->MTU = $MTU;
@@ -111,7 +123,10 @@ class Player{
 	public function getSpawn(){
 		return $this->spawnPosition;
 	}
-	
+
+	/**
+	 * @param Vector3 $pos
+	 */
 	public function setSpawn(Vector3 $pos){
 		if(!($pos instanceof Position)){
 			$level = $this->level;
@@ -216,6 +231,7 @@ class Player{
 
 	public function save(){
 		if($this->entity instanceof Entity){
+			$this->data->set("achievements", $this->achievements);
 			$this->data->set("position", array(
 				"level" => $this->entity->level->getName(),
 				"x" => $this->entity->x,
@@ -252,6 +268,10 @@ class Player{
 		}
 	}
 
+	/**
+	 * @param string $reason Reason for closing connection
+	 * @param boolean $msg Set to false to silently disconnect player. No broadcast.
+	 */
 	public function close($reason = "", $msg = true){
 		if($this->connected === true){
 			foreach($this->evid as $ev){
@@ -291,8 +311,13 @@ class Player{
 			$this->received = array();
 		}
 	}
-	
-	public function sleepOn(Vector3 $pos){
+
+    /**
+     * @param Vector3 $pos
+     *
+     * @return boolean
+     */
+    public function sleepOn(Vector3 $pos){
 		foreach($this->server->api->player->getAll($this->level) as $p){
 			if($p->isSleeping instanceof Vector3){
 				if($pos->distance($p->isSleeping) <= 0.1){
@@ -332,8 +357,15 @@ class Player{
 			}
 		}
 	}
-	
-	public function hasSpace($type, $damage, $count){
+
+    /**
+     * @param $type
+     * @param $damage
+     * @param $count
+     *
+     * @return boolean
+     */
+    public function hasSpace($type, $damage, $count){
 		$inv = $this->inventory;
 		while($count > 0){
 			$add = 0;
@@ -359,7 +391,15 @@ class Player{
 		return true;
 	}
 
-	public function addItem($type, $damage, $count, $send = true){
+    /**
+     * @param $type
+     * @param $damage
+     * @param integer $count
+     * @param boolean $send
+     *
+     * @return boolean
+     */
+    public function addItem($type, $damage, $count, $send = true){
 		while($count > 0){
 			$add = 0;
 			foreach($this->inventory as $s => $item){
@@ -414,16 +454,28 @@ class Player{
 		}
 		return true;
 	}
-	
-	public function setSlot($slot, Item $item, $send = true){
+
+    /**
+     * @param integer $slot
+     * @param Item $item
+     * @param boolean $send
+     *
+     * @return boolean
+     */
+    public function setSlot($slot, Item $item, $send = true){
 		$this->inventory[(int) $slot] = $item;
 		if($send === true){
 			$this->sendInventorySlot((int) $slot);
 		}
 		return true;
 	}
-	
-	public function getSlot($slot){
+
+    /**
+     * @param integer $slot
+     *
+     * @return Item
+     */
+    public function getSlot($slot){
 		if(isset($this->inventory[(int) $slot])){
 			return $this->inventory[(int) $slot];
 		}else{
@@ -463,8 +515,13 @@ class Player{
 		}
 		return true;
 	}
-	
-	public function getArmor($slot){
+
+    /**
+     * @param integer $slot
+     *
+     * @return Item
+     */
+    public function getArmor($slot){
 		if(isset($this->armor[(int) $slot])){
 			return $this->armor[(int) $slot];
 		}else{
@@ -480,8 +537,12 @@ class Player{
 		}
 		return false;
 	}
-	
-	public function eventHandler($data, $event){
+
+    /**
+     * @param mixed $data
+     * @param string $event
+     */
+    public function eventHandler($data, $event){
 		switch($event){
 			case "tile.update":
 				if($data->level === $this->level){
@@ -533,6 +594,14 @@ class Player{
 					$this->dataPacket(MC_TAKE_ITEM_ENTITY, $data);
 					if(($this->gamemode & 0x01) === 0x00){
 						$this->addItem($data["entity"]->type, $data["entity"]->meta, $data["entity"]->stack, false);
+					}
+					switch($data["entity"]->type){
+						case WOOD:
+							AchievementAPI::grantAchievement($this, "mineWood");
+							break;
+						case DIAMOND:
+							AchievementAPI::grantAchievement($this, "diamond");
+							break;
 					}
 				}elseif($data["entity"]->level === $this->level){
 					$this->dataPacket(MC_TAKE_ITEM_ENTITY, $data);
@@ -607,8 +676,12 @@ class Player{
 				break;
 		}
 	}
-	
-	public function sendChat($message, $author = ""){
+
+    /**
+     * @param string $message
+     * @param string $author
+     */
+    public function sendChat($message, $author = ""){
 		$mes = explode("\n", $message);
 		foreach($mes as $m){
 			if(preg_match_all('#@([@A-Za-z_]{1,})#', $m, $matches, PREG_OFFSET_CAPTURE) > 0){
@@ -687,8 +760,15 @@ class Player{
 			"flags" => $flags,
 		));
 	}
-	
-	public function craftItems(array $craft, array $recipe, $type){
+
+    /**
+     * @param array $craft
+     * @param array $recipe
+     * @param $type
+     *
+     * @return array|bool
+     */
+    public function craftItems(array $craft, array $recipe, $type){
 		$craftItem = array(0, true, 0);
 		unset($craft[-1]);
 		foreach($craft as $slot => $item){
@@ -726,6 +806,10 @@ class Player{
 		}
 		
 		if(is_array($res)){
+
+			if($this->server->api->dhandle("player.craft", array("player" => $this, "recipe" => $recipe, "craft" => $craft, "type" => $type)) === false){
+				return false;
+			}
 			foreach($recipe as $slot => $item){
 				$s = $this->getSlot($slot);
 				$s->count -= $item->count;
@@ -740,12 +824,58 @@ class Player{
 				}else{
 					$this->setSlot($slot, BlockAPI::getItem($item->getID(), $item->getMetadata(), $s->count + $item->count), false);
 				}
+
+				switch($item->getID()){
+					case WORKBENCH:
+						AchievementAPI::grantAchievement($this, "buildWorkBench");
+						break;
+					case WOODEN_PICKAXE:
+						AchievementAPI::grantAchievement($this, "buildPickaxe");
+						break;
+					case FURNACE:
+						AchievementAPI::grantAchievement($this, "buildFurnace");
+						break;
+					case WOODEN_HOE:
+						AchievementAPI::grantAchievement($this, "buildHoe");
+						break;
+					case BREAD:
+						AchievementAPI::grantAchievement($this, "makeBread");
+						break;
+					case CAKE:
+						AchievementAPI::grantAchievement($this, "bakeCake");
+						break;
+					case STONE_PICKAXE:
+					case GOLD_PICKAXE:
+					case IRON_PICKAXE:
+					case DIAMOND_PICKAXE:
+						AchievementAPI::grantAchievement($this, "buildBetterPickaxe");
+						break;
+					case WOODEN_SWORD:
+						AchievementAPI::grantAchievement($this, "buildSword");
+						break;
+					case DIAMOND:
+						AchievementAPI::grantAchievement($this, "diamond");
+						break;
+					case CAKE:
+						$this->addItem(BUCKET, 0, 3, false);
+						break;
+						
+				}
 			}
 		}
 		return $res;
 	}
-	
-	public function teleport(Vector3 $pos, $yaw = false, $pitch = false, $terrain = true, $force = true){
+
+    /**
+     * @param Vector3 $pos
+     * @param float|boolean $yaw
+     * @param float|boolean $pitch
+     * @param float|boolean $terrain
+     * @param float|boolean $force
+     *
+     * @return boolean
+     */
+    public function teleport(Vector3 $pos, $yaw = false, $pitch = false, $terrain = true, $force = true){
 		if($this->entity instanceof Entity and $this->level instanceof Level){
 			$this->entity->check = false;
 			if($yaw === false){
@@ -852,8 +982,9 @@ class Player{
 			"x" => $pos->x,
 			"y" => $pos->y,
 			"z" => $pos->z,
-			"yaw" => $yaw,
+			"bodyYaw" => $yaw,
 			"pitch" => $pitch,
+			"yaw" => $yaw,
 		));
 	}
 	
@@ -1099,10 +1230,10 @@ class Player{
 			case MC_PONG:
 				break;
 			case MC_PING:
-				$t = (int) (microtime(true) * 1000);
+				$t = abs(microtime(true) * 1000);
 				$this->dataPacket(MC_PONG, array(
 					"ptime" => $data["time"],
-					"time" => (int) (microtime(true) * 1000),
+					"time" => $t,
 				));
 				$this->sendBuffer();
 				break;
@@ -1158,9 +1289,8 @@ class Player{
 					return;
 				}
 
-                //此处被修改
                 $this->server->api->moeapk->允许玩家($this->iusername);
-
+				
 				if($this->server->whitelist === true and !$this->server->api->ban->inWhitelist($this->iusername)){
 					$this->close("Server is white-listed", false);
 					return;
@@ -1202,6 +1332,7 @@ class Player{
 					}
 					$this->data->set("inventory", $inv);
 				}
+				$this->achievements = $this->data->get("achievements");
 				$this->data->set("caseusername", $this->username);
 				$this->inventory = array();		
 				foreach($this->data->get("inventory") as $slot => $item){
@@ -1219,9 +1350,8 @@ class Player{
 				$this->data->set("lastIP", $this->ip);
 				$this->data->set("lastID", $this->clientID);
 
-				if($this->data instanceof Config){
-					$this->server->api->player->saveOffline($this->data);
-				}
+				$this->server->api->player->saveOffline($this->data);
+
 				$this->dataPacket(MC_LOGIN_STATUS, array(
 					"status" => 0,
 				));
@@ -1235,7 +1365,7 @@ class Player{
 					"eid" => 0,
 				));
 				if(($this->gamemode & 0x01) === 0x01){
-					$this->slot = -1;//7
+					$this->slot = 0;
 				}else{
 					$this->slot = -1;//0
 				}
@@ -1313,6 +1443,20 @@ class Player{
 						break;
 				}
 				break;
+			case MC_ROTATE_HEAD:
+				if($this->spawned === false){
+					break;
+				}
+				if(($this->entity instanceof Entity)){
+					if($this->blocked === true or $this->server->api->handle("player.move", $this->entity) === false){
+						if($this->lastCorrect instanceof Vector3){
+							$this->teleport($this->lastCorrect, $this->entity->yaw, $this->entity->pitch, false);
+						}
+					}else{
+						$this->entity->setPosition($this->entity, $data["yaw"], $data["pitch"]);
+					}
+				}
+				break;
 			case MC_MOVE_PLAYER:
 				if($this->spawned === false){
 					break;
@@ -1347,7 +1491,7 @@ class Player{
 				$data["eid"] = $this->eid;
 				$data["player"] = $this;
 				
-				if($data["slot"] === 0){
+				if($data["slot"] === 0x28 or $data["slot"] === 0){ //0 for 0.8.0 compatibility
 					$data["slot"] = -1;
 					$data["item"] = BlockAPI::getItem(AIR, 0, 0);
 					if($this->server->handle("player.equipment.change", $data) !== false){
@@ -1358,9 +1502,26 @@ class Player{
 					$data["slot"] -= 9;
 				}
 				
-				$data["item"] = $this->getSlot($data["slot"]);
-				if(!($data["item"] instanceof Item)){
-					break;
+				
+				if(($this->gamemode & 0x01) === SURVIVAL){
+					$data["item"] = $this->getSlot($data["slot"]);
+					if(!($data["item"] instanceof Item)){
+						break;
+					}
+				}elseif(($this->gamemode & 0x01) === CREATIVE){
+					$data["slot"] = false;
+					foreach(BlockAPI::$creative as $i => $d){
+						if($d[0] === $data["block"] and $d[1] === $data["meta"]){
+							$data["slot"] = $i;
+						}
+					}
+					if($data["slot"] !== false){
+						$data["item"] = $this->getSlot($data["slot"]);
+					}else{
+						break;
+					}
+				}else{
+					break;//?????
 				}
 				$data["block"] = $data["item"]->getID();
 				$data["meta"] = $data["item"]->getMetadata();
@@ -1701,6 +1862,7 @@ class Player{
 						$items = array(
 							APPLE => 2,
 							MUSHROOM_STEW => 10,
+							BEETROOT_SOUP => 10,
 							BREAD => 5,
 							RAW_PORKCHOP => 3,
 							COOKED_PORKCHOP => 8,
@@ -1710,6 +1872,10 @@ class Player{
 							RAW_CHICKEN => 2,
 							MELON_SLICE => 2,
 							GOLDEN_APPLE => 10,
+							PUMPKIN_PIE => 8,
+							CARROT => 4,
+							POTATO => 1,
+							BAKED_POTATO => 6,
 							//COOKIE => 2,
 							//COOKED_FISH => 5,
 							//RAW_FISH => 2,
@@ -1724,6 +1890,9 @@ class Player{
 							--$slot->count;
 							if($slot->count <= 0){
 								$this->setSlot($this->slot, BlockAPI::getItem(AIR, 0, 0), false);
+							}
+							if($slot->getID() === MUSHROOM_STEW or $slot->getID() === BEETROOT_SOUP){
+								$this->addItem(BOWL, 0, 1, false);
 							}
 						}
 						break;
@@ -1756,8 +1925,13 @@ class Player{
 					if($message{0} === "/"){ //Command
 						$this->server->api->console->run(substr($message, 1), $this);
 					}else{
-						if($this->server->api->dhandle("player.chat", array("player" => $this, "message" => $message)) !== false){
-							$this->server->api->chat->send($this, $message);
+						$data = array("player" => $this, "message" => $message);
+						if($this->server->api->handle("player.chat", $data) !== false){
+							if(isset($data["message"])){
+								$this->server->api->chat->send($this, $data["message"]);
+							}else{
+								$this->server->api->chat->send($this, $message);
+							}
 						}
 					}
 				}
@@ -1928,6 +2102,15 @@ class Player{
 						));
 						break;
 					}
+
+					if($tile->class === TILE_FURNACE and $data["slot"] == 2){
+						switch($slot->getID()){
+							case IRON_INGOT:
+								AchievementAPI::grantAchievement($this, "acquireIron");
+								break;
+						}
+					}
+					
 					if($item->getID() !== AIR and $slot->getID() == $item->getID()){
 						if($slot->count < $item->count){
 							if($this->removeItem($item->getID(), $item->getMetadata(), $item->count - $slot->count, false) === false){
@@ -1977,8 +2160,11 @@ class Player{
 				break;
 		}
 	}
-	
-	public function sendArmor($player = false){
+
+    /**
+     * @param Player|string|boolean|void $player
+     */
+    public function sendArmor($player = false){
 		$data = array(
 			"player" => $this,
 			"eid" => $this->eid
@@ -2009,6 +2195,9 @@ class Player{
 	}
 	
 	public function sendInventory(){
+		if(($this->gamemode & 0x01) === CREATIVE){
+			return;
+		}
 		$this->dataPacket(MC_CONTAINER_SET_CONTENT, array(
 			"windowid" => 0,
 			"count" => count($this->inventory),
@@ -2077,7 +2266,13 @@ class Player{
 		return array($count);
 	}
 
-	public function dataPacket($id, $data = array()){
+    /**
+     * @param integer $id
+     * @param array $data
+     *
+     * @return array|bool
+     */
+    public function dataPacket($id, $data = array()){
 		$data["id"] = $id;
 		if($id === false){
 			$raw = $data["raw"];
@@ -2097,8 +2292,11 @@ class Player{
 		$this->buffer .= ($this->buffer === "" ? "":"\x40").Utils::writeShort($len << 3).strrev(Utils::writeTriad($this->counter[3]++)).$raw;
 		return array();
 	}
-	
-	function __toString(){
+
+    /**
+     * @return string
+     */
+    function __toString(){
 		if($this->username != ""){
 			return $this->username;
 		}
