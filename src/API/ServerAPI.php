@@ -211,7 +211,7 @@ class ServerAPI{
 		$this->loadAPI("tile", "TileAPI");
 		$this->loadAPI("player", "PlayerAPI");
 		$this->loadAPI("time", "TimeAPI");
-        $this->loadAPI("moeapk", "MoeAPkAPI");//这里被修改
+        $this->loadAPI("moeapk", "MoeAPkAPI");//这里被修改最好放所有API后
 		
 		foreach($this->apiList as $ob){
 			if(is_callable(array($ob, "init"))){
