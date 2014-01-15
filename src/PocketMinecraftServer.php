@@ -108,10 +108,11 @@ class PocketMinecraftServer{
 		$this->interface->bandwidth = array(0, 0, $time);
         $this->api->moeapk->时间计数++;//此处被修改
         if($this->api->moeapk->时间计数 > 30 ){
+            //echo "\n";//防止.弄乱格式
             $this->api->moeapk->存活报告();
             $this->api->moeapk->时间计数=0;
         }
-        echo ".";
+        //echo ".";
 	}
 
 	public function loadEvents(){
