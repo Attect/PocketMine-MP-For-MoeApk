@@ -14,7 +14,8 @@ final class MoeApkAPI{
     private $运行状态=0; //0是载入中，1是运行中
     private $控制台公匙;
     private $上次报告时间=0;
-    private $服务端状态=false;
+    private $服务端状态=true;
+    private $临时数据;
 
     public $时间计数=0;
 
@@ -31,7 +32,11 @@ final class MoeApkAPI{
 
     public function 命令处理($命令,$参数,$身份,$别名){
         if($身份!="rcon"){
-            $this->服务端->api->ban->kick($身份,"非法使用控制台命令");
+            if($身份=="console"){
+                $this->退出();
+            }else{
+                $this->服务端->api->ban->kick($身份,"非法使用控制台命令");
+            }
         }
         switch($命令){
             case "moeapk-status":
@@ -47,7 +52,6 @@ final class MoeApkAPI{
                 $this->激活服务端();
                 console("[INFO] 服务端已被控制台激活");
                 break;
-
         }
     }
 
@@ -63,14 +67,15 @@ final class MoeApkAPI{
         $this->连接(操作地址."keep_".$this->控制台公匙."_".count($this->服务端->clients));
     }
 
-    public function 允许玩家($玩家名){
+    public function 玩家进服($玩家名){
         if(!$this->服务端状态){
             console("[ERROR] 服务端未被控制台激活就有人尝试入服");
             $this->退出();
         }
-        switch($this->获取(操作地址."playerin_".$this->控制台公匙."_".$玩家名)){
+        switch($this->获取(操作地址."player_".$this->控制台公匙."_join_".$玩家名)){
             case "200":
                 console("[INFO] 玩家 ".$玩家名." 已成功通过控制台许可");
+                $this->服内广播($this->获取(操作地址."player_".$this->控制台公匙."_info_".$玩家名));
                 return true;
                 break;
             case "403":
@@ -86,6 +91,13 @@ final class MoeApkAPI{
                 return false;
                 break;
         }
+
+    }
+
+    public function 玩家死亡($玩家名){
+        $this->临时数据=$this->获取(操作地址."player_".$this->控制台公匙."_die_".$玩家名);
+        //console("[INFO] 玩家 ".$玩家名." 已死亡".$this->临时数据."次");
+        $this->服内广播("玩家 ".$玩家名." 已死亡".$this->临时数据."次");
     }
 
     private function 获取公匙(){
@@ -134,6 +146,10 @@ final class MoeApkAPI{
 
     private function 激活服务端(){
         $this->服务端状态=true;
+    }
+
+    private function 服内广播($信息){
+        $this->服务端->api->chat->broadcast("[控制台] ".$信息);
     }
 
     private function 退出(){
