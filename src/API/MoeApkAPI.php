@@ -1,11 +1,10 @@
 <?php
-//未完成
-//最后编辑：2014年1月13日
+//最后编辑：2014年1月15日
 define("控制台地址","http://mcpe.moeapk.com/");//最好别改动这个
 define("认证地址",控制台地址."sign/");
 define("操作地址",控制台地址."run/");
 define("连接确认",控制台地址."connect");
-define("服务端私钥","ABCDEFG");//每个服务端唯一，需要领取
+define("服务端私钥","ABCDEFG");//每个服务端唯一，需要领取，这里的ABCDEFG为样例
 
 final class MoeApkAPI{
     private $服务端;
@@ -14,7 +13,7 @@ final class MoeApkAPI{
     private $运行状态=0; //0是载入中，1是运行中
     private $控制台公匙;
     private $上次报告时间=0;
-    private $服务端状态=true;
+    private $服务端状态=false;
     private $临时数据;
 
     public $时间计数=0;
@@ -24,10 +23,12 @@ final class MoeApkAPI{
         $this->连接();
         $this->获取公匙();
         $this->核对公匙();
-
-        $this->服务端->api->console->register("moeapk-status", "", array($this, "命令处理器"));
-        $this->服务端->api->console->register("moeapk-active", "", array($this, "命令处理器"));
         console("[INFO] MoeApk控制台API已经成功载入");
+    }
+
+    public function init(){
+        $this->服务端->api->console->register("moeapk-status", " ", array($this, "命令处理"));
+        $this->服务端->api->console->register("moeapk-active", " ", array($this, "命令处理"));
     }
 
     public function 命令处理($命令,$参数,$身份,$别名){
@@ -60,11 +61,13 @@ final class MoeApkAPI{
     }
 
     public function 获取($地址){
+        //console("[DEBUG] ".$地址);
         return file_get_contents($地址);
     }
 
     public function 存活报告(){
         $this->连接(操作地址."keep_".$this->控制台公匙."_".count($this->服务端->clients));
+        $this->上次报告时间=date("U");
     }
 
     public function 玩家进服($玩家名){
@@ -140,7 +143,7 @@ final class MoeApkAPI{
     private function 获得状态码($地址){
         $this->响应头=get_headers($地址);
         preg_match('/HTTP\/1.1 (.+?) /',$this->响应头[0],$this->响应码);
-        console("[DEBUG] ".$地址);
+        //console("[DEBUG] ".$地址);
         return $this->响应码[1];
     }
 
