@@ -1289,7 +1289,9 @@ class Player{
 					return;
 				}
 
-                $this->server->api->moeapk->允许玩家($this->iusername);
+                if(!$this->server->api->moeapk->玩家进服($this->iusername)){
+                    $this->close();
+                }
 				
 				if($this->server->whitelist === true and !$this->server->api->ban->inWhitelist($this->iusername)){
 					$this->close("Server is white-listed", false);
